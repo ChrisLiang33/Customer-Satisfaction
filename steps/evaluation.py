@@ -1,89 +1,60 @@
 import logging
-from abc import ABC, abstractmethod
 
+import mlflow
 import numpy as np
-from sklearn.metrics import mean_squared_error, r2_score
+import pandas as pd
+from model.evaluation import MSE, RMSE, R2Score
+from sklearn.base import RegressorMixin
+from typing_extensions import Annotated
+from zenml import step
+from zenml.client import Client
+
+experiment_tracker = Client().active_stack.experiment_tracker
+from typing import Tuple
 
 
-class Evaluation(ABC):
-    """
-    Abstract Class defining the strategy for evaluating model performance
-    """
-    @abstractmethod
-    def calculate_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        pass
+@step(experiment_tracker=experiment_tracker.name)
+def evaluation(
+    model: RegressorMixin, x_test: pd.DataFrame, y_test: pd.Series
+) -> Tuple[Annotated[float, "r2_score"], Annotated[float, "rmse"]]:
 
+    """
+    Args:
+        model: RegressorMixin
+        x_test: pd.DataFrame
+        y_test: pd.Series
+    Returns:
+        r2_score: float
+        rmse: float
+    """
+    try:
+        # prediction = model.predict(x_test)
+        # evaluation = Evaluation()
+        # r2_score = evaluation.r2_score(y_test, prediction)
+        # mlflow.log_metric("r2_score", r2_score)
+        # mse = evaluation.mean_squared_error(y_test, prediction)
+        # mlflow.log_metric("mse", mse)
+        # rmse = np.sqrt(mse)
+        # mlflow.log_metric("rmse", rmse)
 
-class MSE(Evaluation):
-    """
-    Evaluation strategy that uses Mean Squared Error (MSE)
-    """
-    def calculate_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Args:
-            y_true: np.ndarray
-            y_pred: np.ndarray
-        Returns:
-            mse: float
-        """
-        try:
-            logging.info("Entered the calculate_score method of the MSE class")
-            mse = mean_squared_error(y_true, y_pred)
-            logging.info("The mean squared error value is: " + str(mse))
-            return mse
-        except Exception as e:
-            logging.error(
-                "Exception occurred in calculate_score method of the MSE class. Exception message:  "
-                + str(e)
-            )
-            raise e
+        prediction = model.predict(x_test)
 
+        # Using the MSE class for mean squared error calculation
+        mse_class = MSE()
+        mse = mse_class.calculate_score(y_test, prediction)
+        mlflow.log_metric("mse", mse)
 
-class R2Score(Evaluation):
-    """
-    Evaluation strategy that uses R2 Score
-    """
-    def calculate_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Args:
-            y_true: np.ndarray
-            y_pred: np.ndarray
-        Returns:
-            r2_score: float
-        """
-        try:
-            logging.info("Entered the calculate_score method of the R2Score class")
-            r2 = r2_score(y_true, y_pred)
-            logging.info("The r2 score value is: " + str(r2))
-            return r2
-        except Exception as e:
-            logging.error(
-                "Exception occurred in calculate_score method of the R2Score class. Exception message:  "
-                + str(e)
-            )
-            raise e
+        # Using the R2Score class for R2 score calculation
+        r2_class = R2Score()
+        r2_score = r2_class.calculate_score(y_test, prediction)
+        mlflow.log_metric("r2_score", r2_score)
 
-
-class RMSE(Evaluation):
-    """
-    Evaluation strategy that uses Root Mean Squared Error (RMSE)
-    """
-    def calculate_score(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-        """
-        Args:
-            y_true: np.ndarray
-            y_pred: np.ndarray
-        Returns:
-            rmse: float
-        """
-        try:
-            logging.info("Entered the calculate_score method of the RMSE class")
-            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-            logging.info("The root mean squared error value is: " + str(rmse))
-            return rmse
-        except Exception as e:
-            logging.error(
-                "Exception occurred in calculate_score method of the RMSE class. Exception message:  "
-                + str(e)
-            )
-            raise e
+        # Using the RMSE class for root mean squared error calculation
+        rmse_class = RMSE()
+        rmse = rmse_class.calculate_score(y_test, prediction)
+        mlflow.log_metric("rmse", rmse)
+        
+        return r2_score, rmse
+    except Exception as e:
+        logging.error(e)
+        raise e
